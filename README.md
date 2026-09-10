@@ -1,125 +1,238 @@
-# REM (Personal Memory System)
+<div align="center">
 
-> **REM** stands for Personal Memory System — a secure, offline-first mobile application built with React Native and Expo to help remember responsibilities, manage recurring tasks, capture private notes, and securely store critical personal documents.
+# 🧠 R E M
+### **Personal Memory System**
 
----
+*Never forget a responsibility. Never lose a private thought. Never compromise sensitive records.*
 
-## 1. Vision & Core Requirements
+[![React Native](https://img.shields.io/badge/React%20Native-0.74+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2051+-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20RLS-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![SQLite](https://img.shields.io/badge/Local%20DB-Expo%20SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://docs.expo.dev/versions/latest/sdk/sqlite/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20(Expo%20Go)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://play.google.com/store/apps/details?id=host.exp.exponent)
 
-REM is designed primarily as a personal memory companion that operates reliably with or without internet connectivity.
+<br/>
 
-### Major Modules
-1. **Task Management**: Frictionless task creation, time-based reminders, and completion tracking.
-2. **Reminders & Local Notifications**: On-device alarms/notifications triggered at the exact requested time (e.g., "Buy ice cream for mom today at 6:00 PM").
-3. **Recurring Tasks**: Automatic schedule-based task activation (Daily gym, daily coding, weekly contest every Wednesday, etc.) with enable/disable/edit capabilities.
-4. **Private Notes**: Categorized, searchable private notes with a dedicated Trash/Recovery mechanism to safeguard against accidental deletion.
-5. **Secure Personal Document Vault**: Dynamic document schemas (Aadhaar, PAN, Driving License, custom fields) protected by biometric authentication / device PIN. **Strict policy: Payment card CVVs are NEVER stored.**
-6. **Authentication**: Supabase-powered email/password authentication (Sign up, Login, Logout, Forgot password, Reset password) with isolated user data.
-7. **Offline-First Functionality**: All critical operations write immediately to local storage (`expo-sqlite`). The user experience is never blocked by network latency or network failure.
-8. **Cloud Synchronization**: Bidirectional synchronization with Supabase PostgreSQL using conflict resolution and offline mutation queues.
-9. **Strong Security**: Supabase Row Level Security (RLS) enforcement (`auth.uid() = user_id`), encrypted local storage for secrets (`expo-secure-store`), and zero service-role keys exposed in client apps.
-10. **Settings & Account Management**: Profile preferences, data backup/export, and security lock settings.
+[Overview](#-overview) •
+[Core Modules](#-core-modules) •
+[Real-World Use Cases](#-real-world-use-cases) •
+[Architecture](#-system-architecture) •
+[Roadmap](#-phase-by-phase-roadmap) •
+[Security Principles](#-security-principles) •
+[Android Testing](#-how-to-test-on-android)
 
----
-
-## 2. Technology Stack
-
-* **Mobile Framework**: React Native with [Expo](https://expo.dev/) (Managed workflow, TypeScript)
-* **Target OS**: Android (Testable directly via Expo Go or Android APK/development builds)
-* **Local Database**: `expo-sqlite` (High performance, ACID compliant local SQL database)
-* **Secure Storage**: `expo-secure-store` (Hardware-backed encrypted storage for tokens and vault keys)
-* **Notifications**: `expo-notifications` (Android local scheduled notifications)
-* **Biometrics**: `expo-local-authentication` (Fingerprint, Face Unlock, Device PIN)
-* **Backend & Cloud Database**: [Supabase](https://supabase.com/) (PostgreSQL with Row Level Security)
-* **Authentication**: Supabase Auth (Email + Password)
+</div>
 
 ---
 
-## 3. Architecture & Design Principles
+## 📖 Overview
 
+**REM** (Personal Memory System) is an **offline-first**, privacy-centric personal assistant designed to be your external cognitive brain. It allows you to quickly log urgent tasks with alarms, track everyday habits, maintain confidential notes with an undo/trash safety net, and securely preserve vital identity credentials behind biometric lock.
+
+> ⚡ **Offline-First by Design**: Built to ensure that adding a task or retrieving a note operates with instantaneous local latency. Cloud sync happens quietly in the background when connectivity is available.
+
+---
+
+## 🧩 Core Modules
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>⚡ 1. Task Management</h3>
+      <p>Instantaneous capture of one-off tasks with precise date, time, and completion state. Never miss a spontaneous errand.</p>
+    </td>
+    <td width="50%">
+      <h3>⏰ 2. Smart Local Notifications</h3>
+      <p>On-device alarms and notification banners scheduled directly through Android's notification subsystem. Works completely offline.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔁 3. Recurring Task Engine</h3>
+      <p>Automated recurrence generator for habits and weekly rituals (e.g. daily gym, coding drills, Wednesday contests) with enable/disable toggles.</p>
+    </td>
+    <td width="50%">
+      <h3>📝 4. Private Notes & Trash Safety Net</h3>
+      <p>Encrypted personal notes with rich categorization, instant local full-text search, and a 30-day soft-delete trash recovery bin.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🛡️ 5. Personal Document Vault</h3>
+      <p>Dynamic schemas for national IDs (Aadhaar, PAN, Driving License, Custom fields) locked behind Biometric (Fingerprint/Face) and device PIN authentication.</p>
+    </td>
+    <td width="50%">
+      <h3>🔐 6. Supabase Cloud Sync & RLS</h3>
+      <p>Multi-tenant isolated backup powered by PostgreSQL Row Level Security (RLS). Every record belongs exclusively to your authenticated identity.</p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 🎯 Real-World Use Cases
+
+<details open>
+<summary><b>1. Spontaneous Errand (Frictionless Quick-Capture)</b></summary>
+<br>
+
+> **Scenario**: In the morning, your mother says: *"Buy ice cream for me in the evening."*
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  ➕ New Quick Task                                          │
+│  ─────────────────────────────────────────────────────────  │
+│  Title   : Buy ice cream for mom                            │
+│  Date    : Today                                            │
+│  Time    : 06:00 PM                                         │
+│  Action  : [ Schedule Alarm ]                               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+        [ 06:00 PM ] 🔔 Android System Notification Fires:
+        "REM: Buy ice cream for mom"
+                              │
+                              ▼
+        [ Tap ] ➜ Mark Complete ➜ Stored in Local History
 ```
-  ┌───────────────────────────────────────────────────────────────┐
-  │                           REM UI                              │
-  │     (Tasks / Reminders / Notes / Vault / Auth / Settings)     │
-  └──────────────────────────────┬────────────────────────────────┘
-                                 │
-                 ┌───────────────┴───────────────┐
-                 ▼                               ▼
-       ┌────────────────────┐          ┌────────────────────┐
-       │   Local Storage    │          │   Secure Storage   │
-       │   (`expo-sqlite`)  │          │(`expo-secure-store`)│
-       │  Tasks/Notes/Vault │          │ Tokens/Vault Keys  │
-       └─────────┬──────────┘          └────────────────────┘
-                 │ (Offline First)
-                 ▼
-       ┌────────────────────┐
-       │   Sync Engine      │ ◄─────── Network State Listener
-       │ (Queue & Conflict) │
-       └─────────┬──────────┘
-                 │ (When Online)
-                 ▼
-       ┌────────────────────┐
-       │   Supabase Cloud   │
-       │ (PostgreSQL + RLS) │
-       └────────────────────┘
-```
+</details>
 
-### Key Architectural Guidelines
-1. **Offline-First by Default**: The local database is the single source of truth for UI rendering. Network calls happen asynchronously in the background.
-2. **Strict RLS Isolation**: Every table in Supabase must have RLS enabled with policies matching `user_id = auth.uid()`.
-3. **No CVV Storage**: Payment card CVV values are forbidden from entering any form, schema, state, or database.
-4. **Biometric Vault Gate**: The Document Vault requires re-authentication (biometrics or PIN) before decrypting/viewing records.
-5. **Trash & Recovery**: Notes and documents support soft deletion (`deleted_at` timestamp) with a 30-day recovery window before permanent purge.
+<details open>
+<summary><b>2. Recurring Habits & Routine Responsibilities</b></summary>
+<br>
 
----
+* 🏋️ **Gym**: Scheduled every day
+* 💻 **Solve coding problems**: Scheduled every day
+* 📚 **Study session**: Scheduled every day
+* 🏆 **Coding contest**: Every Wednesday at 8:00 PM
+* 🚀 **Weekly project milestone**: Every weekend
 
-## 4. Phase-by-Phase Development Roadmap
+*Each recurring rule automatically activates its task instance on schedule and can be paused, modified, or deleted at any time.*
+</details>
 
-Development follows a strict phased approach. Each phase is fully tested before proceeding to the next.
+<details open>
+<summary><b>3. Secure Dynamic Document Vault</b></summary>
+<br>
 
-| Phase | Milestone | Scope |
+Flexible, encrypted identity records with customizable schemas:
+
+| Document | Pre-configured Fields | Privacy & Protection |
 | :--- | :--- | :--- |
-| **Phase 1** | **Project Foundation & Baseline Setup** | • Initialize Expo React Native TypeScript project<br>• Configure styling & design system tokens (Dark/Light mode)<br>• Set up local database abstraction layer (`expo-sqlite`)<br>• Verify build and boot on physical Android phone |
-| **Phase 2** | **Authentication & Session Management** | • Supabase client initialization (anonymized config)<br>• Email & Password Sign Up, Login, Logout, Password Reset flows<br>• Secure token persistence with `expo-secure-store`<br>• Offline cached session fallback |
-| **Phase 3** | **Offline Task Management & Reminders** | • Task database schema (CRUD, dates, times, priorities)<br>• Quick-entry UI (e.g. "Buy ice cream for mom today at 6:00 PM")<br>• Android scheduled push notifications using `expo-notifications`<br>• Completion toggle and history |
-| **Phase 4** | **Recurring Tasks Engine** | • Recurrence rules schema (Daily, Weekly by day, Monthly)<br>• Recurring task evaluator (materializes active instances)<br>• Rule management: enable, disable, edit, delete |
-| **Phase 5** | **Private Notes with Trash & Recovery** | • Notes schema with tags and categories<br>• Markdown/rich note editor and fast local search<br>• Soft-delete trash bin with restore and permanent delete |
-| **Phase 6** | **Personal Document Vault & Biometrics** | • Dynamic document schemas (Aadhaar, PAN, Driving License, Custom)<br>• Client-side encryption & `expo-local-authentication` gate<br>• Secure document viewer/editor |
-| **Phase 7** | **Cloud Synchronization & Supabase RLS** | • Supabase SQL schemas with Row Level Security<br>• Bidirectional sync worker with offline change-log queue<br>• Conflict resolution based on timestamps |
-| **Phase 8** | **Settings, Data Export & Hardening** | • Data backup and JSON export/import<br>• App-wide biometric lock option<br>• Production release optimizations for Android |
+| **Aadhaar** | • Aadhaar Number<br>• Full Name<br>• Date of Birth | 🔒 Hardware-backed encryption via `expo-secure-store` |
+| **PAN Card** | • PAN Number<br>• Full Name | 🔒 Biometric / Device PIN challenge required to view |
+| **Driving License** | • License Number<br>• Name<br>• Date of Birth<br>• Valid From & Until | 🔒 Zero unencrypted cloud transmission |
+| **Custom ID** | • Custom user-defined key-value attributes | 🔒 Strictly zero CVV storage allowed |
+
+</details>
 
 ---
 
-## 5. Development Principles for Every Phase
+## 🏗️ System Architecture
 
-1. **Inspect First**: Check existing code and dependencies before introducing changes.
-2. **Explain**: Clearly summarize what is being added or modified.
-3. **Phase-Bound**: Make only the changes required for the current phase.
-4. **Preserve Working Code**: Avoid unnecessary rewrites.
-5. **Maintain Clean Architecture**: Modular components, typed interfaces, and separation of concerns.
-6. **Verify & Test**: Validate each phase through automated checks and local runs.
-7. **Android Verification**: Provide step-by-step instructions to run and test on a physical Android device.
-8. **Zero Feature Creep**: Do not silently introduce unrequested functionality.
+```
+                                  USER INTERFACE
+         ┌──────────────────────────────────────────────────────────────┐
+         │     Tasks  │  Recurring  │  Notes  │  Vault  │  Settings     │
+         └──────────────────────────────┬───────────────────────────────┘
+                                        │
+             ┌──────────────────────────┴──────────────────────────┐
+             │                                                     │
+             ▼ (Structured Data)                                   ▼ (Secrets & Keys)
+ ┌───────────────────────────┐                         ┌───────────────────────────┐
+ │     Local Database        │                         │      Secure Storage       │
+ │      `expo-sqlite`        │                         │    `expo-secure-store`    │
+ │ (Tasks, Notes, Vault Meta)│                         │ (Auth Token, Vault Keys)  │
+ └─────────────┬─────────────┘                         └───────────────────────────┘
+               │
+               ▼ (Mutation Queue)
+ ┌───────────────────────────┐
+ │    Local Sync Worker      │ ◄────── [ NetInfo Connection Listener ]
+ │   • Conflict Resolution   │
+ │   • Replay Dirty Changes  │
+ └─────────────┬─────────────┘
+               │ (When Online)
+               ▼
+ ┌─────────────────────────────────────────────────────────────────────────┐
+ │                         SUPABASE CLOUD BACKEND                          │
+ │  ┌─────────────────────────┐            ┌────────────────────────────┐  │
+ │  │      Supabase Auth      │            │   PostgreSQL + RLS         │  │
+ │  │ (Email & Password JWT)  │            │ (auth.uid() = row.user_id) │  │
+ │  └─────────────────────────┘            └────────────────────────────┘  │
+ └─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 6. How to Test on an Android Phone
+## 🔒 Security Principles
+
+> [!IMPORTANT]
+> **Strict CVV Exclusion Policy**: Payment card CVV values are forbidden. Under no circumstance will the application collect, process, or persist card verification codes.
+
+> [!NOTE]
+> **Row Level Security (RLS)**: Every table in Supabase enforces strict isolation. An authenticated user can only access rows where `user_id = auth.uid()`. Service-role keys are strictly never bundled in the app.
+
+> [!TIP]
+> **Biometric Gate**: Opening the Document Vault triggers a biometric (Fingerprint / Face Unlock / PIN) challenge using `expo-local-authentication`.
+
+---
+
+## 🗺️ Phase-by-Phase Roadmap
+
+```
+Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4 ──► Phase 5 ──► Phase 6 ──► Phase 7 ──► Phase 8
+Foundation     Auth        Tasks     Recurrence    Notes       Vault       Sync      Hardening
+```
+
+| Phase | Module / Goal | Status | Scope |
+| :---: | :--- | :---: | :--- |
+| **01** | **Foundation & Setup** | 🟡 `Ready` | • Initialize Expo TypeScript project<br>• Establish design system & dark mode tokens<br>• Local SQLite setup & tab navigation shell<br>• Verify mobile boot on Android via Expo Go |
+| **02** | **Authentication** | ⚪ `Planned` | • Supabase Auth client configuration<br>• Sign Up, Login, Logout, Forgot Password flows<br>• Secure token persistence via `expo-secure-store`<br>• Offline cached session fallback |
+| **03** | **Offline Tasks & Alarms** | ⚪ `Planned` | • SQLite Task schema & CRUD UI<br>• Quick-add flow ("Buy ice cream for mom")<br>• Android notifications using `expo-notifications`<br>• Task history & completion tracking |
+| **04** | **Recurring Task Engine** | ⚪ `Planned` | • Recurrence rules (Daily, Weekly, Custom days)<br>• Automated active instance materialization<br>• Rule management: enable, disable, edit, delete |
+| **05** | **Private Notes & Trash** | ⚪ `Planned` | • Notes schema, categories & search index<br>• Rich note editor & instant search<br>• Soft-delete trash bin with 30-day restore |
+| **06** | **Document Vault** | ⚪ `Planned` | • Dynamic schemas (Aadhaar, PAN, DL, custom fields)<br>• Biometric / PIN protection via `expo-local-authentication`<br>• Client-side encryption & zero CVV policy |
+| **07** | **Cloud Synchronization** | ⚪ `Planned` | • Supabase database tables & RLS policies<br>• Offline mutation queue with auto-retry on reconnect<br>• Timestamp-based conflict resolution |
+| **08** | **Settings & Polish** | ⚪ `Planned` | • Data export/import (JSON backup)<br>• Global app lock preference<br>• Production Android performance tuning |
+
+---
+
+## 📱 How to Test on Android
 
 ### Prerequisites
-* Install the **Expo Go** app from the Google Play Store on your Android phone.
-* Ensure your phone and computer are connected to the same Wi-Fi network (or use Tunnel mode).
+1. Install **Expo Go** from the [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent) on your physical Android phone.
+2. Connect your phone and PC to the same local Wi-Fi network.
 
-### Running the App
-1. Install project dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the Expo development server:
-   ```bash
-   npx expo start
-   ```
-3. Scan the QR code displayed in the terminal using the **Expo Go** app on your Android phone.
-4. If testing across different subnets or behind a firewall, run with tunnel mode:
-   ```bash
-   npx expo start --tunnel
-   ```
+### Execution Steps
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start the Expo development server
+npx expo start
+
+# 3. If running across different network subnets or hotspots:
+npx expo start --tunnel
+```
+
+4. Open **Expo Go** on your Android phone and tap **Scan QR Code**.
+5. Point the camera at the terminal QR code to launch **REM** immediately.
+
+---
+
+## 🛠️ Tech Stack Reference
+
+* **Framework**: React Native + Expo (Managed Workflow)
+* **Language**: TypeScript
+* **Database (Local)**: `expo-sqlite`
+* **Secure Storage**: `expo-secure-store`
+* **Local Notifications**: `expo-notifications`
+* **Biometrics**: `expo-local-authentication`
+* **Backend**: Supabase (PostgreSQL + Auth + Storage)
+* **Target Environment**: Android (Physical Device)
+
+---
+
+<div align="center">
+  <sub>Built with precision for personal productivity, memory retention, and utmost security.</sub>
+</div>
