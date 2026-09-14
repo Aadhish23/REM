@@ -89,3 +89,52 @@ export function getDayOfWeekFromISO(dateStr: string): number {
   return dt.getDay(); // 0 = Sunday ... 6 = Saturday
 }
 
+/**
+ * Checks if a time string "HH:mm:ss" or "HH:mm" has already passed for today
+ * strictly using device local time.
+ */
+export function isTimePastToday(timeStr: string, now: Date = new Date()): boolean {
+  if (!timeStr) return false;
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return false;
+
+  const taskH = parseInt(parts[0], 10);
+  const taskM = parseInt(parts[1], 10);
+  if (isNaN(taskH) || isNaN(taskM)) return false;
+
+  const curH = now.getHours();
+  const curM = now.getMinutes();
+
+  if (taskH < curH) return true;
+  if (taskH === curH && taskM <= curM) return true;
+  return false;
+}
+
+/**
+ * Determines whether a task is Expired:
+ * - Completed tasks are NEVER expired.
+ * - Incomplete task with date < today is Expired.
+ * - Incomplete task with date == today and a scheduled time < current local time is Expired.
+ * - Incomplete task with date == today and no time is NOT expired.
+ * - Future tasks are NOT expired.
+ */
+export function isTaskExpired(
+  taskDate: string,
+  taskTime: string | null | undefined,
+  completed: boolean,
+  now: Date = new Date()
+): boolean {
+  if (completed) return false;
+
+  const todayISO = formatDateToISO(now);
+
+  if (taskDate < todayISO) {
+    return true;
+  }
+
+  if (taskDate === todayISO && taskTime) {
+    return isTimePastToday(taskTime, now);
+  }
+
+  return false;
+}

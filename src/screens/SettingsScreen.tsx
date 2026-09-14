@@ -106,7 +106,7 @@ export const SettingsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 100,
   },
   sectionHeader: {
     flexDirection: 'row',

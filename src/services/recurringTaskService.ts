@@ -5,7 +5,7 @@ import {
   UpdateRecurringTaskDTO,
   Task,
 } from '../types/task';
-import { getTodayISO, addDaysToDate, getDayOfWeekFromISO } from '../utils/date';
+import { getTodayISO, addDaysToDate, getDayOfWeekFromISO, isTimePastToday } from '../utils/date';
 import { notificationService } from './notificationService';
 
 function formatRecurringError(error: Error | null): string {
@@ -500,6 +500,11 @@ export const recurringTaskService = {
           }
 
           if (matches) {
+            // If target date is today and scheduled time has already passed today, do not create today's occurrence
+            if (targetDate === todayISO && def.task_time && isTimePastToday(def.task_time)) {
+              continue;
+            }
+
             const key = `${def.id}|${targetDate}`;
 
             // Check if user previously deleted this occurrence (exception)

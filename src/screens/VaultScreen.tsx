@@ -63,7 +63,7 @@ export const VaultScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 100,
   },
   heroCard: {
     backgroundColor: theme.colors.surface,

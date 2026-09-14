@@ -12,6 +12,7 @@ interface TaskItemProps {
   onDelete: (task: Task) => void;
   isSelectionMode?: boolean;
   isSelected?: boolean;
+  isExpired?: boolean;
   onToggleSelect?: (task: Task) => void;
   onLongPress?: (task: Task) => void;
 }
@@ -23,6 +24,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onDelete,
   isSelectionMode = false,
   isSelected = false,
+  isExpired = false,
   onToggleSelect,
   onLongPress,
 }) => {
@@ -52,6 +54,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         styles.card,
         task.completed && styles.cardCompleted,
         isSelected && styles.cardSelected,
+        isExpired && !task.completed && styles.cardExpired,
       ]}
       onPress={handleCardPress}
       onLongPress={() => onLongPress?.(task)}
@@ -81,7 +84,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       {/* Content */}
       <View style={styles.contentContainer}>
         <Text
-          style={[styles.title, !isSelectionMode && task.completed && styles.titleCompleted]}
+          style={[
+            styles.title,
+            !isSelectionMode && task.completed && styles.titleCompleted,
+            isExpired && !task.completed && styles.titleExpired,
+          ]}
           numberOfLines={2}
         >
           {task.title}
@@ -99,8 +106,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </Text>
         )}
 
-        {/* Metadata badges: Date, Time & Recurring */}
+        {/* Metadata badges: Date, Time, Recurring, and Expired */}
         <View style={styles.metaRow}>
+          {isExpired && !task.completed && (
+            <View style={[styles.badge, styles.expiredBadge]}>
+              <Ionicons name="alert-circle" size={12} color="#F87171" />
+              <Text style={[styles.badgeText, styles.expiredBadgeText]}>Expired</Text>
+            </View>
+          )}
+
           {Boolean(task.recurring_task_id) && (
             <View style={[styles.badge, styles.recurringBadge]}>
               <Ionicons name="repeat-outline" size={12} color="#34D399" />
@@ -167,6 +181,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(99, 102, 241, 0.08)',
     borderColor: theme.colors.primaryLight,
   },
+  cardExpired: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  titleExpired: {
+    color: '#FCA5A5',
+  },
   checkboxTouch: {
     marginRight: theme.spacing.sm,
     marginTop: 2,
@@ -218,6 +239,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderColor: 'rgba(16, 185, 129, 0.25)',
   },
+  expiredBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
   badgeText: {
     fontSize: 11,
     color: theme.colors.textSecondary,
@@ -229,6 +254,10 @@ const styles = StyleSheet.create({
   },
   timeBadgeText: {
     color: theme.colors.primaryLight,
+  },
+  expiredBadgeText: {
+    color: '#F87171',
+    fontWeight: '700',
   },
   actionsContainer: {
     flexDirection: 'row',

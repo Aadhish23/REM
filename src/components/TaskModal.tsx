@@ -22,6 +22,7 @@ import {
   formatTimeDisplay,
   WEEKDAY_SHORT,
   getDayOfWeekFromISO,
+  isTimePastToday,
 } from '../utils/date';
 import { recurringTaskService } from '../services/recurringTaskService';
 import { theme } from '../constants/theme';
@@ -130,7 +131,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
     setShowDatePicker(false);
     if (event.type === 'set' && date) {
-      setSelectedDate(formatDateToISO(date));
+      const newDateStr = formatDateToISO(date);
+      setSelectedDate(newDateStr);
+
+      // If switched to today and the current selected time is already in the past, clear it and warn
+      if (newDateStr === todayISO && selectedTime && repeatType === 'none' && isTimePastToday(selectedTime)) {
+        setSelectedTime(null);
+        setValidationError('Time was cleared because it has already passed for today.');
+      } else {
+        setValidationError(null);
+      }
     }
   };
 
@@ -139,7 +149,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (event.type === 'set' && date) {
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
-      setSelectedTime(`${hours}:${minutes}:00`);
+      const timeStr = `${hours}:${minutes}:00`;
+
+      // If scheduled for today and one-time, block past time
+      if (selectedDate === todayISO && repeatType === 'none' && isTimePastToday(timeStr)) {
+        setValidationError('Please choose a future time for today.');
+        return;
+      }
+
+      setValidationError(null);
+      setSelectedTime(timeStr);
     }
   };
 
@@ -183,6 +202,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
+    // Time validation for Today (one-time task)
+    if (selectedDate === todayISO && selectedTime && repeatType === 'none' && isTimePastToday(selectedTime)) {
+      setValidationError('Please choose a future time for today.');
+      return;
+    }
+
     if (repeatType === 'weekly') {
       if (selectedWeekdays.length !== daysPerWeek) {
         setValidationError(
@@ -217,6 +242,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const isRecurringTask = Boolean(initialTask?.recurring_task_id);
   const todayISO = getTodayISO();
   const tomorrowISO = getTomorrowISO();
+
+  const is9AMPastToday = selectedDate === todayISO && repeatType === 'none' && isTimePastToday('09:00:00');
+  const is6PMPastToday = selectedDate === todayISO && repeatType === 'none' && isTimePastToday('18:00:00');
 
   return (
     <Modal
@@ -359,7 +387,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             <View style={styles.chipRow}>
               <TouchableOpacity
                 style={[styles.chip, selectedTime === null && styles.chipActive]}
-                onPress={() => setSelectedTime(null)}
+                onPress={() => {
+                  setValidationError(null);
+                  setSelectedTime(null);
+                }}
               >
                 <Text style={[styles.chipText, selectedTime === null && styles.chipTextActive]}>
                   No Time
@@ -367,19 +398,53 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.chip, selectedTime === '09:00:00' && styles.chipActive]}
-                onPress={() => setSelectedTime('09:00:00')}
+                style={[
+                  styles.chip,
+                  selectedTime === '09:00:00' && styles.chipActive,
+                  is9AMPastToday && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (is9AMPastToday) {
+                    setValidationError('9:00 AM has already passed today.');
+                    return;
+                  }
+                  setValidationError(null);
+                  setSelectedTime('09:00:00');
+                }}
               >
-                <Text style={[styles.chipText, selectedTime === '09:00:00' && styles.chipTextActive]}>
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedTime === '09:00:00' && styles.chipTextActive,
+                    is9AMPastToday && styles.chipTextDisabled,
+                  ]}
+                >
                   9:00 AM
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.chip, selectedTime === '18:00:00' && styles.chipActive]}
-                onPress={() => setSelectedTime('18:00:00')}
+                style={[
+                  styles.chip,
+                  selectedTime === '18:00:00' && styles.chipActive,
+                  is6PMPastToday && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (is6PMPastToday) {
+                    setValidationError('6:00 PM has already passed today.');
+                    return;
+                  }
+                  setValidationError(null);
+                  setSelectedTime('18:00:00');
+                }}
               >
-                <Text style={[styles.chipText, selectedTime === '18:00:00' && styles.chipTextActive]}>
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedTime === '18:00:00' && styles.chipTextActive,
+                    is6PMPastToday && styles.chipTextDisabled,
+                  ]}
+                >
                   6:00 PM
                 </Text>
               </TouchableOpacity>
@@ -683,6 +748,13 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: '#FFFFFF',
+  },
+  chipDisabled: {
+    opacity: 0.35,
+  },
+  chipTextDisabled: {
+    color: theme.colors.textMuted,
+    textDecorationLine: 'line-through',
   },
   saveButton: {
     backgroundColor: theme.colors.primary,

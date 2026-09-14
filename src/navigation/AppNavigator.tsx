@@ -1,39 +1,63 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootTabParamList } from '../types/navigation';
 import { TasksScreen } from '../screens/TasksScreen';
 import { NotesScreen } from '../screens/NotesScreen';
 import { VaultScreen } from '../screens/VaultScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { theme } from '../constants/theme';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export const AppNavigator: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  // Safe bottom padding for Samsung One UI & Android gesture/3-button navigation
+  const bottomInset = Math.max(insets.bottom, 12);
+  const barHeight = 64 + bottomInset;
+
   return (
     <Tab.Navigator
       initialRouteName="Tasks"
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: theme.colors.activeTab,
-        tabBarInactiveTintColor: theme.colors.inactiveTab,
-        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: '#FFFFFF',
+        tabBarInactiveTintColor: '#8696A0',
+        tabBarButton: (props) => (
+          <TouchableOpacity
+            {...(props as any)}
+            activeOpacity={0.75}
+          />
+        ),
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: barHeight,
+            paddingBottom: bottomInset,
+          },
+        ],
+        tabBarItemStyle: styles.tabBarItem,
       }}
     >
       <Tab.Screen
         name="Tasks"
         component={TasksScreen}
         options={{
-          tabBarLabel: 'Tasks',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'checkbox' : 'checkbox-outline'}
-              size={size}
-              color={color}
-            />
+          tabBarLabel: ({ focused }) => (
+            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+              Tasks
+            </Text>
+          ),
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={focused ? 'checkbox' : 'checkbox-outline'}
+                size={23}
+                color={focused ? '#FFFFFF' : '#8696A0'}
+              />
+            </View>
           ),
         }}
       />
@@ -41,13 +65,19 @@ export const AppNavigator: React.FC = () => {
         name="Notes"
         component={NotesScreen}
         options={{
-          tabBarLabel: 'Notes',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'document-text' : 'document-text-outline'}
-              size={size}
-              color={color}
-            />
+          tabBarLabel: ({ focused }) => (
+            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+              Notes
+            </Text>
+          ),
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={focused ? 'document-text' : 'document-text-outline'}
+                size={23}
+                color={focused ? '#FFFFFF' : '#8696A0'}
+              />
+            </View>
           ),
         }}
       />
@@ -55,13 +85,19 @@ export const AppNavigator: React.FC = () => {
         name="Vault"
         component={VaultScreen}
         options={{
-          tabBarLabel: 'Vault',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
-              size={size}
-              color={color}
-            />
+          tabBarLabel: ({ focused }) => (
+            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+              Vault
+            </Text>
+          ),
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
+                size={23}
+                color={focused ? '#FFFFFF' : '#8696A0'}
+              />
+            </View>
           ),
         }}
       />
@@ -69,13 +105,19 @@ export const AppNavigator: React.FC = () => {
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'settings' : 'settings-outline'}
-              size={size}
-              color={color}
-            />
+          tabBarLabel: ({ focused }) => (
+            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+              Settings
+            </Text>
+          ),
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={focused ? 'settings' : 'settings-outline'}
+                size={23}
+                color={focused ? '#FFFFFF' : '#8696A0'}
+              />
+            </View>
           ),
         }}
       />
@@ -85,15 +127,39 @@ export const AppNavigator: React.FC = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: theme.colors.tabBarBackground,
-    borderTopColor: theme.colors.tabBarBorder,
+    backgroundColor: '#0B1017', // WhatsApp-style dark surface
+    borderTopColor: '#1F2633', // Clean subtle top border
     borderTopWidth: 1,
-    height: 62,
-    paddingBottom: 8,
     paddingTop: 6,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
   },
-  tabBarLabel: {
-    fontSize: theme.typography.fontSizes.xs,
-    fontWeight: '600',
+  tabBarItem: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  iconContainer: {
+    width: 48,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 11,
+    marginTop: 3,
+    textAlign: 'center',
+    letterSpacing: 0.2,
+  },
+  tabLabelActive: {
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  tabLabelInactive: {
+    fontWeight: '500',
+    color: '#8696A0', // WhatsApp inactive icon/text color
   },
 });

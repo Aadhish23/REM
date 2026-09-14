@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -18,10 +19,15 @@ import { recurringTaskService } from '../services/recurringTaskService';
 import { notificationService } from '../services/notificationService';
 import { supabase } from '../services/supabase';
 import { Task } from '../types/task';
-import { isToday, isUpcoming, isPast } from '../utils/date';
+import {
+  isToday,
+  isUpcoming,
+  isTaskExpired,
+  getTodayISO,
+} from '../utils/date';
 import { theme } from '../constants/theme';
 
-type TaskTab = 'today' | 'today_completed' | 'upcoming' | 'all_completed';
+type TaskTab = 'today' | 'today_completed' | 'upcoming' | 'expired' | 'all_completed';
 
 interface TabItem {
   id: TaskTab;
@@ -33,6 +39,7 @@ const TABS: TabItem[] = [
   { id: 'today', label: 'Today', icon: 'sunny-outline' },
   { id: 'today_completed', label: 'Today Completed', icon: 'checkmark-circle-outline' },
   { id: 'upcoming', label: 'Upcoming', icon: 'calendar-outline' },
+  { id: 'expired', label: 'Expired', icon: 'alert-circle-outline' },
   { id: 'all_completed', label: 'All Completed Task', icon: 'checkmark-done-outline' },
 ];
 
@@ -42,6 +49,7 @@ export const TasksScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskTab>('today');
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   // Multi-select state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -50,6 +58,24 @@ export const TasksScreen: React.FC = () => {
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Auto-updating expired timer: re-evaluates every 10 seconds and on foreground return
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000);
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        setCurrentTime(new Date());
+      }
+    });
+
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, []);
 
   const loadTasks = useCallback(async () => {
     setErrorMessage(null);
@@ -78,6 +104,7 @@ export const TasksScreen: React.FC = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
+    setCurrentTime(new Date());
     loadTasks();
   };
 
@@ -210,7 +237,7 @@ export const TasksScreen: React.FC = () => {
   };
 
   const handleToggleComplete = async (task: Task) => {
-    // Optimistic UI update
+    // Optimistic UI update: instantly moves between pending/expired and completed
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
     );
@@ -225,6 +252,8 @@ export const TasksScreen: React.FC = () => {
   };
 
   const handleDelete = (task: Task) => {
+    const todayISO = getTodayISO();
+
     if (task.recurring_task_id) {
       Alert.alert(
         'Recurring Task Actions',
@@ -234,12 +263,12 @@ export const TasksScreen: React.FC = () => {
           {
             text: 'Delete this occurrence',
             onPress: async () => {
-              const previousTasks = [...tasks];
+              // Immediately update local React state: occurrence disappears instantly
               setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
               const { error } = await recurringTaskService.deleteOccurrenceOnly(task);
               if (error) {
-                setTasks(previousTasks);
+                await loadTasks();
                 Alert.alert('Error deleting occurrence', error);
               }
             },
@@ -247,13 +276,26 @@ export const TasksScreen: React.FC = () => {
           {
             text: 'End recurring series',
             onPress: async () => {
+              // Immediately update local React state: remove future uncompleted occurrences of this series
+              setTasks((prev) =>
+                prev.filter(
+                  (t) =>
+                    !(
+                      t.recurring_task_id === task.recurring_task_id &&
+                      t.task_date >= todayISO &&
+                      !t.completed
+                    )
+                )
+              );
+
               const { error } = await recurringTaskService.endRecurringSeries(
                 task.recurring_task_id!
               );
               if (error) {
+                await loadTasks();
                 Alert.alert('Error ending recurring series', error);
               } else {
-                await loadTasks();
+                loadTasks();
               }
             },
           },
@@ -261,13 +303,26 @@ export const TasksScreen: React.FC = () => {
             text: 'Delete entire series',
             style: 'destructive',
             onPress: async () => {
+              // Immediately update local React state: remove future uncompleted occurrences of this series
+              setTasks((prev) =>
+                prev.filter(
+                  (t) =>
+                    !(
+                      t.recurring_task_id === task.recurring_task_id &&
+                      t.task_date >= todayISO &&
+                      !t.completed
+                    )
+                )
+              );
+
               const { error } = await recurringTaskService.deleteRecurringTask(
                 task.recurring_task_id!
               );
               if (error) {
+                await loadTasks();
                 Alert.alert('Error deleting recurring series', error);
               } else {
-                await loadTasks();
+                loadTasks();
               }
             },
           },
@@ -287,12 +342,12 @@ export const TasksScreen: React.FC = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const previousTasks = [...tasks];
+            // Immediately update local React state: disappears instantly
             setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
             const { error } = await taskService.deleteTask(task.id);
             if (error) {
-              setTasks(previousTasks);
+              await loadTasks();
               Alert.alert('Error deleting task', error);
             }
           },
@@ -324,7 +379,7 @@ export const TasksScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             const toDeleteIds = Array.from(selectedTaskIds);
-            const prev = [...tasks];
+            // Immediately update local state
             setTasks((curr) => curr.filter((t) => !selectedTaskIds.has(t.id)));
             exitSelectionMode();
 
@@ -347,7 +402,7 @@ export const TasksScreen: React.FC = () => {
               // 3. Delete from database
               const { error } = await supabase.from('tasks').delete().in('id', toDeleteIds);
               if (error) {
-                setTasks(prev);
+                await loadTasks();
                 Alert.alert('Error deleting tasks', error.message);
               }
             } catch (err) {
@@ -371,21 +426,44 @@ export const TasksScreen: React.FC = () => {
     setModalVisible(true);
   };
 
-  // Grouping tasks
-  const todayPendingTasks = tasks.filter((t) => isToday(t.task_date) && !t.completed);
-  const pastPendingTasks = tasks.filter((t) => isPast(t.task_date) && !t.completed);
+  // Grouping tasks using live local device clock
+  // 1. Expired: Incomplete tasks where date < today OR (date == today AND time <= current time)
+  const expiredTasks = tasks.filter((t) =>
+    isTaskExpired(t.task_date, t.task_time, t.completed, currentTime)
+  );
+
+  // 2. Today Active: Incomplete tasks for today that have not expired yet
+  const todayActiveTasks = tasks.filter(
+    (t) =>
+      isToday(t.task_date) &&
+      !t.completed &&
+      !isTaskExpired(t.task_date, t.task_time, t.completed, currentTime)
+  );
+
+  // 3. Today Completed: Completed tasks scheduled for today
   const todayCompletedTasks = tasks.filter((t) => isToday(t.task_date) && t.completed);
-  const upcomingTasks = tasks.filter((t) => isUpcoming(t.task_date) && !t.completed);
+
+  // 4. Upcoming: Incomplete future tasks (task_date > today)
+  const upcomingTasks = tasks.filter(
+    (t) =>
+      isUpcoming(t.task_date) &&
+      !t.completed &&
+      !isTaskExpired(t.task_date, t.task_time, t.completed, currentTime)
+  );
+
+  // 5. All Completed: Entire completed task history
   const allCompletedTasks = tasks.filter((t) => t.completed);
 
   const getTabCount = (tabId: TaskTab): number => {
     switch (tabId) {
       case 'today':
-        return todayPendingTasks.length + pastPendingTasks.length;
+        return todayActiveTasks.length;
       case 'today_completed':
         return todayCompletedTasks.length;
       case 'upcoming':
         return upcomingTasks.length;
+      case 'expired':
+        return expiredTasks.length;
       case 'all_completed':
         return allCompletedTasks.length;
     }
@@ -394,11 +472,13 @@ export const TasksScreen: React.FC = () => {
   const getVisibleTasksForActiveTab = (): Task[] => {
     switch (activeTab) {
       case 'today':
-        return [...pastPendingTasks, ...todayPendingTasks];
+        return todayActiveTasks;
       case 'today_completed':
         return todayCompletedTasks;
       case 'upcoming':
         return upcomingTasks;
+      case 'expired':
+        return expiredTasks;
       case 'all_completed':
         return allCompletedTasks;
     }
@@ -410,14 +490,12 @@ export const TasksScreen: React.FC = () => {
 
   const handleSelectAllToggle = () => {
     if (isAllSelectedInTab) {
-      // Deselect visible
       setSelectedTaskIds((prev) => {
         const next = new Set(prev);
         visibleTasks.forEach((t) => next.delete(t.id));
         return next;
       });
     } else {
-      // Select all visible
       setSelectedTaskIds((prev) => {
         const next = new Set(prev);
         visibleTasks.forEach((t) => next.add(t.id));
@@ -465,7 +543,7 @@ export const TasksScreen: React.FC = () => {
           <View style={styles.topBarText}>
             <Text style={styles.topHeading}>My Tasks</Text>
             <Text style={styles.topSubheading}>
-              {todayPendingTasks.length} pending for today
+              {todayActiveTasks.length} active for today
             </Text>
           </View>
 
@@ -501,23 +579,52 @@ export const TasksScreen: React.FC = () => {
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const count = getTabCount(tab.id);
+            const isExpiredTab = tab.id === 'expired';
             return (
               <TouchableOpacity
                 key={tab.id}
-                style={[styles.tabChip, isActive && styles.tabChipActive]}
+                style={[
+                  styles.tabChip,
+                  isActive && styles.tabChipActive,
+                  isExpiredTab && count > 0 && !isActive && styles.tabChipExpiredNotice,
+                ]}
                 onPress={() => setActiveTab(tab.id)}
                 activeOpacity={0.7}
               >
                 <Ionicons
                   name={tab.icon}
                   size={15}
-                  color={isActive ? '#FFFFFF' : theme.colors.textSecondary}
+                  color={
+                    isActive
+                      ? '#FFFFFF'
+                      : isExpiredTab && count > 0
+                      ? '#F87171'
+                      : theme.colors.textSecondary
+                  }
                 />
-                <Text style={[styles.tabChipText, isActive && styles.tabChipTextActive]}>
+                <Text
+                  style={[
+                    styles.tabChipText,
+                    isActive && styles.tabChipTextActive,
+                    isExpiredTab && count > 0 && !isActive && styles.tabChipTextExpired,
+                  ]}
+                >
                   {tab.label}
                 </Text>
-                <View style={[styles.tabBadge, isActive && styles.tabBadgeActive]}>
-                  <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
+                <View
+                  style={[
+                    styles.tabBadge,
+                    isActive && styles.tabBadgeActive,
+                    isExpiredTab && count > 0 && !isActive && styles.tabBadgeExpired,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabBadgeText,
+                      isActive && styles.tabBadgeTextActive,
+                      isExpiredTab && count > 0 && !isActive && styles.tabBadgeTextExpired,
+                    ]}
+                  >
                     {count}
                   </Text>
                 </View>
@@ -556,60 +663,21 @@ export const TasksScreen: React.FC = () => {
             />
           }
         >
-          {/* TAB 1: TODAY (Includes Overdue if any) */}
+          {/* TAB 1: TODAY (Active tasks scheduled for today) */}
           {activeTab === 'today' && (
             <View style={styles.sectionContainer}>
-              {pastPendingTasks.length > 0 && (
-                <View style={styles.subSection}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Ionicons name="alert-circle-outline" size={18} color={theme.colors.danger} />
-                      <Text style={[styles.sectionTitle, { color: theme.colors.danger }]}>
-                        Overdue
-                      </Text>
-                    </View>
-                    <View style={[styles.countBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                      <Text style={[styles.countBadgeText, { color: theme.colors.danger }]}>
-                        {pastPendingTasks.length}
-                      </Text>
-                    </View>
-                  </View>
-                  {pastPendingTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      onToggleComplete={handleToggleComplete}
-                      onEdit={openEditTaskModal}
-                      onDelete={handleDelete}
-                      isSelectionMode={isSelectionMode}
-                      isSelected={selectedTaskIds.has(task.id)}
-                      onToggleSelect={handleToggleSelect}
-                      onLongPress={handleLongPressTask}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {pastPendingTasks.length > 0 && todayPendingTasks.length > 0 && (
-                <View style={[styles.sectionHeader, { marginTop: theme.spacing.sm }]}>
-                  <View style={styles.sectionTitleRow}>
-                    <Ionicons name="sunny" size={18} color={theme.colors.warning} />
-                    <Text style={styles.sectionTitle}>Today's Pending</Text>
-                  </View>
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{todayPendingTasks.length}</Text>
-                  </View>
-                </View>
-              )}
-
-              {todayPendingTasks.length === 0 && pastPendingTasks.length === 0 ? (
+              {todayActiveTasks.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <Ionicons name="checkmark-circle-outline" size={36} color={theme.colors.success} />
                   <Text style={styles.emptyText}>All clear for today!</Text>
-                  <Text style={styles.emptySubtext}>Tap "+ Add Task" to schedule a task.</Text>
+                  <Text style={styles.emptySubtext}>
+                    {expiredTasks.length > 0
+                      ? 'You have missed tasks in the Expired tab.'
+                      : 'Tap "+ Add Task" to schedule a task.'}
+                  </Text>
                 </View>
               ) : (
-                todayPendingTasks.map((task) => (
+                todayActiveTasks.map((task) => (
                   <TaskItem
                     key={task.id}
                     task={task}
@@ -618,6 +686,7 @@ export const TasksScreen: React.FC = () => {
                     onDelete={handleDelete}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedTaskIds.has(task.id)}
+                    isExpired={false}
                     onToggleSelect={handleToggleSelect}
                     onLongPress={handleLongPressTask}
                   />
@@ -645,6 +714,7 @@ export const TasksScreen: React.FC = () => {
                     onDelete={handleDelete}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedTaskIds.has(task.id)}
+                    isExpired={false}
                     onToggleSelect={handleToggleSelect}
                     onLongPress={handleLongPressTask}
                   />
@@ -672,6 +742,7 @@ export const TasksScreen: React.FC = () => {
                     onDelete={handleDelete}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedTaskIds.has(task.id)}
+                    isExpired={false}
                     onToggleSelect={handleToggleSelect}
                     onLongPress={handleLongPressTask}
                   />
@@ -680,7 +751,37 @@ export const TasksScreen: React.FC = () => {
             </View>
           )}
 
-          {/* TAB 4: ALL COMPLETED TASK */}
+          {/* TAB 4: EXPIRED (Incomplete tasks whose date or time has passed) */}
+          {activeTab === 'expired' && (
+            <View style={styles.sectionContainer}>
+              {expiredTasks.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Ionicons name="checkmark-done-circle-outline" size={36} color={theme.colors.success} />
+                  <Text style={styles.emptyText}>No expired tasks!</Text>
+                  <Text style={styles.emptySubtext}>
+                    Great job! You haven't missed any scheduled tasks.
+                  </Text>
+                </View>
+              ) : (
+                expiredTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggleComplete={handleToggleComplete}
+                    onEdit={openEditTaskModal}
+                    onDelete={handleDelete}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedTaskIds.has(task.id)}
+                    isExpired={true}
+                    onToggleSelect={handleToggleSelect}
+                    onLongPress={handleLongPressTask}
+                  />
+                ))
+              )}
+            </View>
+          )}
+
+          {/* TAB 5: ALL COMPLETED TASK */}
           {activeTab === 'all_completed' && (
             <View style={styles.sectionContainer}>
               {allCompletedTasks.length === 0 ? (
@@ -699,6 +800,7 @@ export const TasksScreen: React.FC = () => {
                     onDelete={handleDelete}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedTaskIds.has(task.id)}
+                    isExpired={false}
                     onToggleSelect={handleToggleSelect}
                     onLongPress={handleLongPressTask}
                   />
@@ -715,7 +817,7 @@ export const TasksScreen: React.FC = () => {
               </View>
               <Text style={styles.fullEmptyTitle}>No Tasks Yet</Text>
               <Text style={styles.fullEmptyDesc}>
-                Add tasks you want to remember (e.g., "Buy ice cream for mom today at 6:00 PM").
+                Add tasks you want to remember (e.g., "Gym every day at 6:00 AM").
               </Text>
               <TouchableOpacity style={styles.emptyAddButton} onPress={openNewTaskModal}>
                 <Text style={styles.emptyAddButtonText}>Create Your First Task</Text>
@@ -735,6 +837,19 @@ export const TasksScreen: React.FC = () => {
         onSave={handleCreateOrUpdate}
         initialTask={editingTask}
       />
+
+      {/* WhatsApp-style Floating Action Button (FAB) */}
+      {!isSelectionMode && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={openNewTaskModal}
+          activeOpacity={0.85}
+          accessibilityLabel="Add Task"
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </ScreenContainer>
   );
 };
@@ -882,6 +997,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primaryLight,
   },
+  tabChipExpiredNotice: {
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
   tabChipText: {
     fontSize: theme.typography.fontSizes.xs,
     fontWeight: '600',
@@ -890,6 +1009,10 @@ const styles = StyleSheet.create({
   tabChipTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  tabChipTextExpired: {
+    color: '#F87171',
+    fontWeight: '600',
   },
   tabBadge: {
     paddingHorizontal: 6,
@@ -900,6 +1023,9 @@ const styles = StyleSheet.create({
   tabBadgeActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
+  tabBadgeExpired: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',
@@ -907,6 +1033,9 @@ const styles = StyleSheet.create({
   },
   tabBadgeTextActive: {
     color: '#FFFFFF',
+  },
+  tabBadgeTextExpired: {
+    color: '#F87171',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -945,42 +1074,10 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   scrollContent: {
-    paddingBottom: theme.spacing.xl + 20,
-  },
-  subSection: {
-    marginBottom: theme.spacing.md,
+    paddingBottom: 110,
   },
   sectionContainer: {
     marginBottom: theme.spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xs + 2,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: theme.typography.fontSizes.md,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  countBadge: {
-    backgroundColor: theme.colors.surfaceElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  countBadgeText: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
   },
   emptyCard: {
     backgroundColor: theme.colors.surface,
@@ -1001,6 +1098,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSizes.xs,
     color: theme.colors.textSecondary,
     marginTop: 2,
+    textAlign: 'center',
   },
   fullEmptyState: {
     alignItems: 'center',
@@ -1042,5 +1140,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: theme.typography.fontSizes.sm,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    zIndex: 99,
   },
 });
