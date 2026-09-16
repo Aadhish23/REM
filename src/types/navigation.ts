@@ -24,3 +24,10 @@ export type RootTabScreenProps<T extends keyof RootTabParamList> = BottomTabScre
   RootTabParamList,
   T
 >;
+
+export { NotesStackParamList } from './note';
+import { NotesStackParamList } from './note';
+export type NotesStackScreenProps<T extends keyof NotesStackParamList> = NativeStackScreenProps<
+  NotesStackParamList,
+  T
+>;

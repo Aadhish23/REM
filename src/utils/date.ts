@@ -138,3 +138,77 @@ export function isTaskExpired(
 
   return false;
 }
+
+/**
+ * Formats an ISO date/time string into a human-friendly relative time label:
+ * - "just now" (< 1 min)
+ * - "X min ago" (< 60 min)
+ * - "X hour(s) ago" (< 24 hours and today)
+ * - "yesterday"
+ * - "Sep 15" (current year)
+ * - "Sep 15, 2025" (different year)
+ */
+export function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+
+  if (diffSec < 0) return 'just now'; // slight clock skew
+  if (diffSec < 60) return 'just now';
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} min ago`;
+
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24 && date.getDate() === now.getDate()) {
+    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+
+  // Check if yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  ) {
+    return 'yesterday';
+  }
+
+  // Same year: "Sep 15"
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  // Different year: "Sep 15, 2025"
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Formats an ISO date/time string for full date & time display (e.g. NoteView):
+ * e.g. "Sep 16, 2026, 9:30 PM"
+ */
+export function formatDateTimeDisplay(isoString: string | null | undefined): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '';
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

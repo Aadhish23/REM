@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { RootTabParamList } from '../types/navigation';
 import { TasksScreen } from '../screens/TasksScreen';
-import { NotesScreen } from '../screens/NotesScreen';
+import { NotesNavigator } from './NotesNavigator';
 import { VaultScreen } from '../screens/VaultScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
@@ -63,22 +64,35 @@ export const AppNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Notes"
-        component={NotesScreen}
-        options={{
-          tabBarLabel: ({ focused }) => (
-            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
-              Notes
-            </Text>
-          ),
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'document-text' : 'document-text-outline'}
-                size={23}
-                color={focused ? '#FFFFFF' : '#8696A0'}
-              />
-            </View>
-          ),
+        component={NotesNavigator}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'NotesList';
+          const isDetailOrEditor = routeName === 'NoteView' || routeName === 'NoteEditor';
+          return {
+            tabBarStyle: isDetailOrEditor
+              ? { display: 'none' }
+              : [
+                  styles.tabBar,
+                  {
+                    height: barHeight,
+                    paddingBottom: bottomInset,
+                  },
+                ],
+            tabBarLabel: ({ focused }) => (
+              <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+                Notes
+              </Text>
+            ),
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.iconContainer}>
+                <Ionicons
+                  name={focused ? 'document-text' : 'document-text-outline'}
+                  size={23}
+                  color={focused ? '#FFFFFF' : '#8696A0'}
+                />
+              </View>
+            ),
+          };
         }}
       />
       <Tab.Screen
