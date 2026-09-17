@@ -31,3 +31,11 @@ export type NotesStackScreenProps<T extends keyof NotesStackParamList> = NativeS
   NotesStackParamList,
   T
 >;
+
+export { VaultStackParamList } from './document';
+import { VaultStackParamList } from './document';
+export type VaultStackScreenProps<T extends keyof VaultStackParamList> = NativeStackScreenProps<
+  VaultStackParamList,
+  T
+>;
+

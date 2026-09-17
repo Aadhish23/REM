@@ -212,3 +212,27 @@ export function formatDateTimeDisplay(isoString: string | null | undefined): str
     minute: '2-digit',
   });
 }
+
+/**
+ * Formats a calendar date string (YYYY-MM-DD) into standard document display "DD MMM YYYY".
+ * Strictly uses date components without timezone shifts.
+ * e.g. "2000-01-01" -> "01 Jan 2000"
+ */
+export function formatDocumentDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthName = months[month - 1] || '';
+  const paddedDay = String(day).padStart(2, '0');
+
+  return `${paddedDay} ${monthName} ${year}`;
+}
+

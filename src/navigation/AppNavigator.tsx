@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootTabParamList } from '../types/navigation';
 import { TasksScreen } from '../screens/TasksScreen';
 import { NotesNavigator } from './NotesNavigator';
-import { VaultScreen } from '../screens/VaultScreen';
+import { VaultNavigator } from './VaultNavigator';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -97,24 +97,43 @@ export const AppNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Vault"
-        component={VaultScreen}
-        options={{
-          tabBarLabel: ({ focused }) => (
-            <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
-              Vault
-            </Text>
-          ),
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
-                size={23}
-                color={focused ? '#FFFFFF' : '#8696A0'}
-              />
-            </View>
-          ),
+        component={VaultNavigator}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'VaultList';
+          const isDetailOrEditor =
+            routeName === 'DocumentView' ||
+            routeName === 'DocumentEditor' ||
+            routeName === 'TemplateList' ||
+            routeName === 'TemplateEditor';
+
+          return {
+            tabBarStyle: isDetailOrEditor
+              ? { display: 'none' }
+              : [
+                  styles.tabBar,
+                  {
+                    height: barHeight,
+                    paddingBottom: bottomInset,
+                  },
+                ],
+            tabBarLabel: ({ focused }) => (
+              <Text style={[styles.tabLabel, focused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+                Vault
+              </Text>
+            ),
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.iconContainer}>
+                <Ionicons
+                  name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
+                  size={23}
+                  color={focused ? '#FFFFFF' : '#8696A0'}
+                />
+              </View>
+            ),
+          };
         }}
       />
+
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
