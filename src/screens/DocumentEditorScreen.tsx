@@ -25,8 +25,8 @@ import {
   DrivingLicenseData,
 } from '../types/document';
 import { DocumentTemplate, DocumentTemplateField } from '../types/documentTemplate';
-import { documentService } from '../services/documentService';
-import { documentTemplateService } from '../services/documentTemplateService';
+import { localDocumentService } from '../services/localDocumentService';
+import { localTemplateService } from '../services/localTemplateService';
 import { formatDateToISO, formatDocumentDate } from '../utils/date';
 import { theme } from '../constants/theme';
 
@@ -75,7 +75,7 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
 
       // 1. If editing existing document, load document first
       if (documentId) {
-        const { data: doc, error: docErr } = await documentService.getDocument(documentId);
+        const { data: doc, error: docErr } = await localDocumentService.getDocument(documentId);
         if (!isMounted) return;
 
         if (docErr || !doc) {
@@ -95,7 +95,7 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
           if (doc.template) {
             setTemplate(doc.template);
           } else if (doc.template_id) {
-            const { data: tpl } = await documentTemplateService.getTemplate(doc.template_id);
+            const { data: tpl } = await localTemplateService.getTemplate(doc.template_id);
             if (isMounted && tpl) setTemplate(tpl);
           }
         } else {
@@ -104,7 +104,7 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
           setName(docData.name || '');
           if (doc.document_type === 'aadhaar') {
             setAadhaarNumber(
-              documentService.formatDisplayNumber('aadhaar', (docData as AadhaarData).aadhaarNumber || '')
+              localDocumentService.formatDisplayNumber('aadhaar', (docData as AadhaarData).aadhaarNumber || '')
             );
             setDateOfBirth((docData as AadhaarData).dateOfBirth || '');
           } else if (doc.document_type === 'pan') {
@@ -118,7 +118,7 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
         }
       } else if (initialTemplateId) {
         // 2. Create mode for custom template
-        const { data: tpl, error: tplErr } = await documentTemplateService.getTemplate(initialTemplateId);
+        const { data: tpl, error: tplErr } = await localTemplateService.getTemplate(initialTemplateId);
         if (!isMounted) return;
 
         if (tplErr || !tpl) {
@@ -314,14 +314,14 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
 
     try {
       if (isEditing && documentId) {
-        const { error } = await documentService.updateDocument(documentId, payloadData);
+        const { error } = await localDocumentService.updateDocument(documentId, payloadData);
         if (error) {
           setSaving(false);
           Alert.alert('Unable to Save', error);
           return;
         }
       } else {
-        const { error } = await documentService.createDocument(documentType, payloadData, templateId);
+        const { error } = await localDocumentService.createDocument(documentType, payloadData, templateId);
         if (error) {
           setSaving(false);
           Alert.alert('Unable to Save', error);
@@ -339,7 +339,7 @@ export const DocumentEditorScreen: React.FC<Props> = ({ route, navigation }) => 
   const displayName =
     documentType === 'custom'
       ? template?.name || 'Custom Document'
-      : documentService.getDisplayName(documentType);
+      : localDocumentService.getDisplayName(documentType);
 
   if (loading) {
     return (

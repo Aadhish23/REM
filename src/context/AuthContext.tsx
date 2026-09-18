@@ -28,6 +28,9 @@ function formatAuthError(error: Error | null): string | null {
   return error.message;
 }
 
+import { initDatabaseForUser, closeDatabase } from '../database/database';
+import { syncService } from '../services/syncService';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -47,6 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!error && data.session && isMounted) {
           setSession(data.session);
           setUser(data.session.user);
+          // Initialize user-partitioned local SQLite database
+          await initDatabaseForUser(data.session.user.id);
+          // Background sync
+          syncService.initializeSync(data.session.user.id).catch(() => {});
         }
       } catch {
         // Silent catch on bootstrap
@@ -61,11 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       if (isMounted) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         setIsLoading(false);
+
+        if (currentSession?.user) {
+          await initDatabaseForUser(currentSession.user.id);
+          syncService.initializeSync(currentSession.user.id).catch(() => {});
+        } else {
+          syncService.clearSync();
+          await closeDatabase().catch(() => {});
+        }
       }
     });
 
@@ -130,6 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     } catch {
       // Force clear local state on error
+    } finally {
+      syncService.clearSync();
+      await closeDatabase().catch(() => {});
       setSession(null);
       setUser(null);
     }

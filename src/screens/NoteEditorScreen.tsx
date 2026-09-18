@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NotesStackParamList } from '../types/note';
-import { noteService } from '../services/noteService';
+import { localNoteService } from '../services/localNoteService';
 import { theme } from '../constants/theme';
 
 type Props = NativeStackScreenProps<NotesStackParamList, 'NoteEditor'>;
@@ -41,7 +41,7 @@ export const NoteEditorScreen: React.FC<Props> = ({ route, navigation }) => {
     if (noteId) {
       (async () => {
         setLoading(true);
-        const { data, error } = await noteService.getNote(noteId);
+        const { data, error } = await localNoteService.getNote(noteId);
         if (!isMounted) return;
 
         if (error || !data) {
@@ -99,7 +99,7 @@ export const NoteEditorScreen: React.FC<Props> = ({ route, navigation }) => {
 
     try {
       if (isEditing && noteId) {
-        const { error } = await noteService.updateNote(noteId, {
+        const { error } = await localNoteService.updateNote(noteId, {
           title: trimmedTitle,
           content,
         });
@@ -110,7 +110,7 @@ export const NoteEditorScreen: React.FC<Props> = ({ route, navigation }) => {
           return;
         }
       } else {
-        const { error } = await noteService.createNote({
+        const { error } = await localNoteService.createNote({
           title: trimmedTitle,
           content,
         });

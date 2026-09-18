@@ -5,5 +5,9 @@ export { notificationService } from './notificationService';
 export { noteService } from './noteService';
 export { documentService } from './documentService';
 export { documentTemplateService } from './documentTemplateService';
-
-
+export { localTaskService } from './localTaskService';
+export { localNoteService } from './localNoteService';
+export { localDocumentService } from './localDocumentService';
+export { localTemplateService } from './localTemplateService';
+export { syncService } from './syncService';
+export { networkService } from './networkService';

@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { DocumentCard } from '../components/DocumentCard';
 import { AddDocumentModal } from '../components/AddDocumentModal';
-import { documentService } from '../services/documentService';
-import { documentTemplateService } from '../services/documentTemplateService';
+import { localDocumentService } from '../services/localDocumentService';
+import { localTemplateService } from '../services/localTemplateService';
 import {
   VaultStackParamList,
   DocumentItem,
@@ -41,10 +41,10 @@ export const VaultScreen: React.FC<Props> = ({ navigation }) => {
     }
     setErrorMessage(null);
 
-    // Fetch documents and custom templates in parallel
+    // Fetch documents and custom templates locally from SQLite
     const [docsResult, templatesResult] = await Promise.all([
-      documentService.getDocuments(),
-      documentTemplateService.getTemplates(),
+      localDocumentService.getDocuments(),
+      localTemplateService.getTemplates(),
     ]);
 
     if (docsResult.error) {

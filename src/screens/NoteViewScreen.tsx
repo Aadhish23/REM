@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NotesStackParamList, Note } from '../types/note';
-import { noteService } from '../services/noteService';
+import { localNoteService } from '../services/localNoteService';
 import { formatDateTimeDisplay, formatRelativeTime } from '../utils/date';
 import { theme } from '../constants/theme';
 
@@ -26,7 +26,7 @@ export const NoteViewScreen: React.FC<Props> = ({ route, navigation }) => {
   const [deleting, setDeleting] = useState(false);
 
   const fetchNote = useCallback(async () => {
-    const { data, error } = await noteService.getNote(noteId);
+    const { data, error } = await localNoteService.getNote(noteId);
     if (error || !data) {
       Alert.alert('Note Unavailable', error || 'Could not load note.', [
         { text: 'Back', onPress: () => navigation.goBack() },
@@ -61,7 +61,7 @@ export const NoteViewScreen: React.FC<Props> = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
-            const { error } = await noteService.deleteNote(note.id);
+            const { error } = await localNoteService.deleteNote(note.id);
             if (error) {
               setDeleting(false);
               Alert.alert('Unable to Delete', error);

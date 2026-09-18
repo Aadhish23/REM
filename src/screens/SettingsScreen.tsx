@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
+import { SyncStatusCard } from '../components/SyncStatusCard';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../constants/theme';
 
@@ -59,6 +60,13 @@ export const SettingsScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* Cloud Synchronization Section */}
+        <View style={styles.sectionHeader}>
+          <Ionicons name="cloud-done-outline" size={20} color={theme.colors.primaryLight} />
+          <Text style={styles.sectionTitle}>Cloud Synchronization</Text>
+        </View>
+        <SyncStatusCard />
 
         {/* System & Architecture Info */}
         <View style={styles.sectionHeader}>

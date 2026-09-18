@@ -21,6 +21,9 @@ const appNavigationTheme = {
   },
 };
 
+import { AppState } from 'react-native';
+import { syncService } from './src/services/syncService';
+
 export default function App() {
   useEffect(() => {
     // 1. Initialize Android notification channel for task reminders
@@ -33,8 +36,16 @@ export default function App() {
       // Opens app safely without crashing
     });
 
+    // 3. Trigger sync when returning to active foreground
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        syncService.syncNow().catch(() => {});
+      }
+    });
+
     return () => {
       subscription.remove();
+      appStateSub.remove();
     };
   }, []);
 

@@ -14,10 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { TaskItem } from '../components/TaskItem';
 import { TaskModal, TaskModalSaveData } from '../components/TaskModal';
-import { taskService } from '../services/taskService';
-import { recurringTaskService } from '../services/recurringTaskService';
+import { localTaskService } from '../services/localTaskService';
 import { notificationService } from '../services/notificationService';
-import { supabase } from '../services/supabase';
 import { Task } from '../types/task';
 import {
   isToday,
@@ -80,15 +78,15 @@ export const TasksScreen: React.FC = () => {
   const loadTasks = useCallback(async () => {
     setErrorMessage(null);
 
-    // 1. Sync recurring occurrences for rolling 30-day window
+    // 1. Sync recurring occurrences locally for rolling 30-day window
     try {
-      await recurringTaskService.syncOccurrences();
+      await localTaskService.syncOccurrences();
     } catch (syncErr) {
       console.warn('[TasksScreen] Sync occurrences non-blocking error:', syncErr);
     }
 
-    // 2. Fetch all user tasks
-    const { data, error } = await taskService.getTasks();
+    // 2. Fetch all user tasks from local SQLite
+    const { data, error } = await localTaskService.getTasks();
     if (error) {
       setErrorMessage(error);
     } else {
@@ -137,7 +135,7 @@ export const TasksScreen: React.FC = () => {
       if (data.recurring_task_id) {
         // Editing a recurring task definition
         if (data.repeatType === 'daily' || data.repeatType === 'weekly') {
-          const { error: recError } = await recurringTaskService.updateRecurringTask(
+          const { error: recError } = await localTaskService.updateRecurringTask(
             data.recurring_task_id,
             {
               title: data.title,
@@ -155,8 +153,8 @@ export const TasksScreen: React.FC = () => {
           await loadTasks();
         } else {
           // Changed to 'none': End the recurring series and convert current occurrence to independent task
-          await recurringTaskService.endRecurringSeries(data.recurring_task_id);
-          await taskService.updateTask(editingTask.id, {
+          await localTaskService.endRecurringSeries(data.recurring_task_id);
+          await localTaskService.updateTask(editingTask.id, {
             title: data.title,
             description: data.description,
             task_date: data.task_date,
@@ -168,7 +166,7 @@ export const TasksScreen: React.FC = () => {
         // Editing a one-time task
         if (data.repeatType === 'daily' || data.repeatType === 'weekly') {
           // Converted from one-time to recurring
-          await recurringTaskService.createRecurringTask({
+          await localTaskService.createRecurringTask({
             title: data.title,
             description: data.description,
             frequency: data.repeatType,
@@ -176,11 +174,11 @@ export const TasksScreen: React.FC = () => {
             task_time: data.task_time,
             start_date: data.task_date,
           });
-          await taskService.deleteTask(editingTask.id);
+          await localTaskService.deleteTask(editingTask.id);
           await loadTasks();
         } else {
           // Regular one-time task update
-          const { data: updated, error, notificationWarning } = await taskService.updateTask(
+          const { data: updated, error, notificationWarning } = await localTaskService.updateTask(
             editingTask.id,
             {
               title: data.title,
@@ -204,7 +202,7 @@ export const TasksScreen: React.FC = () => {
     } else {
       // Creating a new task
       if (data.repeatType === 'daily' || data.repeatType === 'weekly') {
-        const { error: recError } = await recurringTaskService.createRecurringTask({
+        const { error: recError } = await localTaskService.createRecurringTask({
           title: data.title,
           description: data.description,
           frequency: data.repeatType,
@@ -218,7 +216,7 @@ export const TasksScreen: React.FC = () => {
         }
         await loadTasks();
       } else {
-        const { data: created, error, notificationWarning } = await taskService.createTask(data);
+        const { data: created, error, notificationWarning } = await localTaskService.createTask(data);
         if (error) {
           Alert.alert('Error creating task', error);
           return false;
@@ -242,7 +240,7 @@ export const TasksScreen: React.FC = () => {
       prev.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
     );
 
-    const { error } = await taskService.toggleTaskCompletion(task.id, task.completed);
+    const { error } = await localTaskService.toggleTaskCompletion(task.id, task.completed);
     if (error) {
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, completed: task.completed } : t))
@@ -266,7 +264,7 @@ export const TasksScreen: React.FC = () => {
               // Immediately update local React state: occurrence disappears instantly
               setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
-              const { error } = await recurringTaskService.deleteOccurrenceOnly(task);
+              const { error } = await localTaskService.deleteOccurrenceOnly(task);
               if (error) {
                 await loadTasks();
                 Alert.alert('Error deleting occurrence', error);
@@ -288,7 +286,7 @@ export const TasksScreen: React.FC = () => {
                 )
               );
 
-              const { error } = await recurringTaskService.endRecurringSeries(
+              const { error } = await localTaskService.endRecurringSeries(
                 task.recurring_task_id!
               );
               if (error) {
@@ -315,7 +313,7 @@ export const TasksScreen: React.FC = () => {
                 )
               );
 
-              const { error } = await recurringTaskService.deleteRecurringTask(
+              const { error } = await localTaskService.deleteRecurringTask(
                 task.recurring_task_id!
               );
               if (error) {
@@ -345,7 +343,7 @@ export const TasksScreen: React.FC = () => {
             // Immediately update local React state: disappears instantly
             setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
-            const { error } = await taskService.deleteTask(task.id);
+            const { error } = await localTaskService.deleteTask(task.id);
             if (error) {
               await loadTasks();
               Alert.alert('Error deleting task', error);
@@ -384,26 +382,10 @@ export const TasksScreen: React.FC = () => {
             exitSelectionMode();
 
             try {
-              // 1. Cancel notifications
-              await Promise.all(
-                selectedTasks.map((t) => notificationService.cancelTaskNotification(t.id))
-              );
-
-              // 2. Add exceptions for recurring occurrences so they never return
-              const recurringOccurrences = selectedTasks.filter((t) => Boolean(t.recurring_task_id));
-              if (recurringOccurrences.length > 0) {
-                await Promise.all(
-                  recurringOccurrences.map((t) =>
-                    recurringTaskService.addException(t.recurring_task_id!, t.task_date)
-                  )
-                );
-              }
-
-              // 3. Delete from database
-              const { error } = await supabase.from('tasks').delete().in('id', toDeleteIds);
+              const { error } = await localTaskService.deleteMultipleTasks(selectedTasks);
               if (error) {
                 await loadTasks();
-                Alert.alert('Error deleting tasks', error.message);
+                Alert.alert('Error deleting tasks', error);
               }
             } catch (err) {
               console.warn('[TasksScreen] Bulk delete error:', err);

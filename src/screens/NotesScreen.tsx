@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { NoteCard } from '../components/NoteCard';
-import { noteService } from '../services/noteService';
+import { localNoteService } from '../services/localNoteService';
 import { Note, NotesStackParamList } from '../types/note';
 import { theme } from '../constants/theme';
 
@@ -34,7 +34,7 @@ export const NotesScreen: React.FC<Props> = ({ navigation }) => {
     }
     setErrorMessage(null);
 
-    const { data, error } = await noteService.getNotes();
+    const { data, error } = await localNoteService.getNotes();
 
     if (error) {
       setErrorMessage(error);
@@ -77,7 +77,7 @@ export const NotesScreen: React.FC<Props> = ({ navigation }) => {
             // Optimistic update: note disappears instantly
             setNotes((prev) => prev.filter((n) => n.id !== note.id));
 
-            const { error } = await noteService.deleteNote(note.id);
+            const { error } = await localNoteService.deleteNote(note.id);
             if (error) {
               await loadNotes();
               Alert.alert('Unable to Delete', error);
@@ -93,7 +93,7 @@ export const NotesScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('NoteEditor', {});
   };
 
-  const filteredNotes = noteService.searchNotes(searchQuery, notes);
+  const filteredNotes = localNoteService.searchNotes(searchQuery, notes);
 
   return (
     <ScreenContainer headerSubtitle="Private Notes">

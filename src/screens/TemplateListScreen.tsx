@@ -14,7 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { VaultStackParamList, DocumentTemplate } from '../types/document';
-import { documentTemplateService } from '../services/documentTemplateService';
+import { localTemplateService } from '../services/localTemplateService';
 import { TemplateCard } from '../components/TemplateCard';
 import { theme } from '../constants/theme';
 
@@ -30,7 +30,7 @@ export const TemplateListScreen: React.FC<Props> = ({ navigation }) => {
     if (isRefresh) setRefreshing(true);
     setErrorMessage(null);
 
-    const { data, error } = await documentTemplateService.getTemplates();
+    const { data, error } = await localTemplateService.getTemplates();
     if (error) {
       setErrorMessage(error);
     } else {
@@ -64,7 +64,7 @@ export const TemplateListScreen: React.FC<Props> = ({ navigation }) => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await documentTemplateService.deleteTemplate(template.id);
+            const { error } = await localTemplateService.deleteTemplate(template.id);
             if (error) {
               Alert.alert('Unable to Delete Template', error);
             } else {

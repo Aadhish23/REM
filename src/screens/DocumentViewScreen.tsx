@@ -22,7 +22,7 @@ import {
   DrivingLicenseData,
 } from '../types/document';
 import { DocumentTemplateField } from '../types/documentTemplate';
-import { documentService } from '../services/documentService';
+import { localDocumentService } from '../services/localDocumentService';
 import { formatDocumentDate } from '../utils/date';
 import { theme } from '../constants/theme';
 
@@ -37,7 +37,7 @@ export const DocumentViewScreen: React.FC<Props> = ({ route, navigation }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const fetchDocument = useCallback(async () => {
-    const { data, error } = await documentService.getDocument(documentId);
+    const { data, error } = await localDocumentService.getDocument(documentId);
     if (error || !data) {
       Alert.alert('Document Unavailable', error || 'Could not load document.', [
         { text: 'Back', onPress: () => navigation.goBack() },
@@ -86,7 +86,7 @@ export const DocumentViewScreen: React.FC<Props> = ({ route, navigation }) => {
   const handleDelete = () => {
     if (!document) return;
 
-    const displayName = documentService.getDisplayName(document.document_type, document);
+    const displayName = localDocumentService.getDisplayName(document.document_type, document);
 
     Alert.alert(
       'Delete document?',
@@ -98,7 +98,7 @@ export const DocumentViewScreen: React.FC<Props> = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
-            const { error } = await documentService.deleteDocument(document.id);
+            const { error } = await localDocumentService.deleteDocument(document.id);
             if (error) {
               setDeleting(false);
               Alert.alert('Unable to Delete', error);
@@ -127,12 +127,25 @@ export const DocumentViewScreen: React.FC<Props> = ({ route, navigation }) => {
     return null;
   }
 
-  const displayName = documentService.getDisplayName(document.document_type, document);
-  const identifier = documentService.getIdentifierNumber(document);
-  const identifierLabel = documentService.getIdentifierLabel(document);
-  const maskedNumber = identifier ? documentService.maskNumber(document.document_type, identifier) : '';
-  const formattedUnmasked = documentService.formatDisplayNumber(document.document_type, identifier);
-  const displayedNumber = isRevealed ? formattedUnmasked : maskedNumber;
+  const displayName = localDocumentService.getDisplayName(
+    document.document_type,
+    document
+  );
+  const cardHolder = localDocumentService.getHolderName(document);
+  const rawIdentifier = localDocumentService.getIdentifierNumber(document);
+  const identifierLabel = localDocumentService.getIdentifierLabel(document);
+
+  const formattedIdentifier =
+    document.document_type === 'custom'
+      ? rawIdentifier
+      : localDocumentService.formatDisplayNumber(document.document_type, rawIdentifier);
+
+  const maskedIdentifier = localDocumentService.maskNumber(
+    document.document_type,
+    rawIdentifier
+  );
+  const displayedNumber = isRevealed ? formattedIdentifier : maskedIdentifier;
+  const identifier = rawIdentifier;
 
   const data = (document.document_data || {}) as any;
 
@@ -253,7 +266,7 @@ export const DocumentViewScreen: React.FC<Props> = ({ route, navigation }) => {
                 // If field is sensitive/masked and not revealed
                 const isMaskedField = (f.sensitive || f.mask_enabled) && !isRevealed && displayVal !== '—';
                 const shownVal = isMaskedField
-                  ? documentService.maskNumber('custom', displayVal)
+                  ? localDocumentService.maskNumber('custom', displayVal)
                   : displayVal;
 
                 return (

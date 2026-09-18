@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { VaultStackParamList } from '../types/document';
 import { CreateTemplateFieldDTO } from '../types/documentTemplate';
-import { documentTemplateService } from '../services/documentTemplateService';
+import { localTemplateService } from '../services/localTemplateService';
 import { TemplateFieldEditor } from '../components/TemplateFieldEditor';
 import { theme } from '../constants/theme';
 
@@ -50,7 +50,7 @@ export const TemplateEditorScreen: React.FC<Props> = ({ route, navigation }) => 
     if (templateId) {
       (async () => {
         setLoading(true);
-        const { data, error } = await documentTemplateService.getTemplate(templateId);
+        const { data, error } = await localTemplateService.getTemplate(templateId);
         if (!isMounted) return;
 
         if (error || !data) {
@@ -225,7 +225,7 @@ export const TemplateEditorScreen: React.FC<Props> = ({ route, navigation }) => 
 
     try {
       if (isEditing && templateId) {
-        const { error } = await documentTemplateService.updateTemplate(templateId, {
+        const { error } = await localTemplateService.updateTemplate(templateId, {
           name: trimmedName,
           description: description.trim() || undefined,
           fields,
@@ -237,7 +237,7 @@ export const TemplateEditorScreen: React.FC<Props> = ({ route, navigation }) => 
           return;
         }
       } else {
-        const { error } = await documentTemplateService.createTemplate({
+        const { error } = await localTemplateService.createTemplate({
           name: trimmedName,
           description: description.trim() || undefined,
           fields,
